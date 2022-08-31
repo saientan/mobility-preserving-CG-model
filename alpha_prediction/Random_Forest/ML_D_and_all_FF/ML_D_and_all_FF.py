@@ -20,9 +20,9 @@ import tensorflow as tf
 import random
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import RandomForestClassifier
-
+from sklearn.tree import export_graphviz
 from sklearn import linear_model
-
+import joblib
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neural_network import MLPRegressor
@@ -32,15 +32,17 @@ import pylab
 from sklearn.model_selection import train_test_split
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
-
+from sklearn.pipeline import Pipeline
 from sklearn.datasets import make_friedman2
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
-
+#from sklearn.externals.six import StringIO
 from sklearn.model_selection import KFold
-
-
-
+from six import StringIO
+from sklearn.tree import export_graphviz
+import pydotplus
+from subprocess import call
+from IPython.display import Image  
 def reg_stats(y_true,y_pred):
     r2 = sklearn.metrics.r2_score(y_true,y_pred)
     mae = sklearn.metrics.mean_absolute_error(y_true, y_pred)
@@ -81,6 +83,8 @@ for train_index, test_index in kf.split(x):
     plt.barh(feature_names, model.feature_importances_)
     plt.show()
 
+  
+
     np.savetxt("feature_importance_"+str(count)+".txt", model.feature_importances_)
     y_pred_train = model.predict(xtrain)
     y_pred_test = model.predict(xtest)
@@ -100,9 +104,22 @@ for train_index, test_index in kf.split(x):
     mae_test=round(mae_test,3)
 #print ("Train", r2, mae)
 #print ("Test", r2, mae)
+    #pipe = Pipeline([
+    #    ('scaler', StandardScaler()), ('reduce_dim', PCA()),      ('regressor', model)       ])
+    pipe = Pipeline([    ('regressor', model)       ])
+    pipe.fit(xtrain,ytrain.ravel())
+    ypipe=pipe.predict(xtest)
+    os.environ['PATH'] = os.environ['PATH']+';'+os.environ['CONDA_PREFIX']+r"\Library\bin\graphviz"
+    dot_data = StringIO()
+    export_graphviz(pipe.named_steps['regressor'].estimators_[0], out_file=dot_data)
+    graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
+    #Image(graph.create_png())
+    graph.write_pdf("abc_"+str(count)+".pdf")
+    #export_graphviz(model)
+    #call(['dot', '-Tpng', 'tree.dot', '-o', 'tree.png', '-Gdpi=600'])
 
-
-
+    print (model)
+    #joblib.dump(model, "RF_uncompressed.joblib", compress=0) 
     plt.scatter(ytrain,y_pred_train,label=' Train: MAE = '+str(mae_train)+', r$^2$ = '+str(r2_train))
     plt.scatter(ytest,y_pred_test,label=' Test: MAE = '+str(mae_test)+', r$^2$ = '+str(r2_test))
     plt.tick_params(direction='in', length=6, width=2, colors='black', labelsize=15, grid_color='black')
@@ -111,6 +128,5 @@ for train_index, test_index in kf.split(x):
     plt.plot(ytrain,ytrain, color='black')
     plt.legend(fontsize=15, loc=2)
     plt.show()
-
 
 
